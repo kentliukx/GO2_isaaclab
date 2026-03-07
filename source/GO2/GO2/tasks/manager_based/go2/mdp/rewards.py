@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import ContactSensor
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -33,3 +34,12 @@ def base_height_l1(
     adjusted_target_height = target_height
     # Compute the L2 squared penalty
     return torch.abs(asset.data.root_pos_w[:, 2] - adjusted_target_height)
+
+def desired_contacts_sum(env:ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float = 1.0) -> torch.Tensor:
+    """Reward the numbers of the desired contacts are present."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contacts = (
+        contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > threshold
+    )
+    contacts_sum = contacts.sum(dim=-1)
+    return 1.0 * contacts_sum
