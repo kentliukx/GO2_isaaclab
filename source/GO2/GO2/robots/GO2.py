@@ -31,10 +31,10 @@ GO2_CONFIG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.3),
         joint_pos={
-            "FL_thigh_joint": 0.8, "FL_hip_joint": 0.1, "FL_calf_joint": -1.6,
-            "FR_thigh_joint": 0.8, "FR_hip_joint": -0.1, "FR_calf_joint": -1.6,
-            "RL_thigh_joint": 0.8, "RL_hip_joint": 0.1, "RL_calf_joint": -1.6,
-            "RR_thigh_joint": 0.8, "RR_hip_joint": -0.1, "RR_calf_joint": -1.6
+            "FL_thigh_joint": 0.8, "FL_hip_joint": 0.3, "FL_calf_joint": -1.6,
+            "FR_thigh_joint": 0.8, "FR_hip_joint": -0.3, "FR_calf_joint": -1.6,
+            "RL_thigh_joint": 0.8, "RL_hip_joint": 0.3, "RL_calf_joint": -1.6,
+            "RR_thigh_joint": 0.8, "RR_hip_joint": -0.3, "RR_calf_joint": -1.6
         },
     ),
     soft_joint_pos_limit_factor=0.9,
