@@ -11,15 +11,15 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     print("LOADING MY PPORunnerCfg")
-    num_steps_per_env = 128
+    num_steps_per_env = 24
     max_iterations = 500
     save_interval = 50
     experiment_name = "GO2"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
-        actor_hidden_dims=[512, 256, 128],
-        critic_hidden_dims=[512, 256, 128],
+        actor_hidden_dims=[256, 256, 128],
+        critic_hidden_dims=[256, 256, 128],
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
