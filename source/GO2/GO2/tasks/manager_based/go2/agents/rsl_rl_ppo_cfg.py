@@ -13,7 +13,7 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     print("LOADING MY PPORunnerCfg")
     num_steps_per_env = 24
     max_iterations = 500
-    save_interval = 50
+    save_interval = 250
     experiment_name = "GO2"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
