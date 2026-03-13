@@ -56,6 +56,7 @@ class Go2SceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/.*", 
         history_length=3,
         debug_vis=True,
+        track_air_time=True,
     )
 
 
@@ -136,54 +137,45 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # Constant running reward
-    alive = RewTerm(func=mdp.is_alive, weight=50.0)
+    alive = RewTerm(func=mdp.is_alive, weight=10.0)
 
     # stand
-    stand = RewTerm(
-        func=mdp.base_height_l1,
-        weight=-50.0,
-        params={"target_height": 0.3},
-    )
-    undesired_contacts = RewTerm(
-        func=mdp.undesired_contacts,
-        weight=-5.0,
-        params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces",body_names=[".*thigh", ".*hip", "base"]),
-            "threshold": 1.0,
-        },
-    )
-    desired_contacts = RewTerm(
-        func=mdp.desired_contacts,
-        weight=-2.0,
-        params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=[".*calf"]),
-            "threshold": 0.5,
-        },
-    )
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0)
+    # stand = RewTerm(
+    #     func=mdp.base_height_l1,
+    #     weight=-5.0,
+    #     params={"target_height": 0.3},
+    # )
+    # undesired_contacts = RewTerm(
+    #     func=mdp.undesired_contacts,
+    #     weight=-2.0,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg(name="contact_forces",body_names=[".*thigh", ".*hip"]),
+    #         "threshold": 1.0,
+    #     },
+    # )
+    # flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0)
+    # This term helps shape the initial behavior of standing still
+    # near_init_position = RewTerm(func=mdp.joint_deviation_l1, weight=-0.05)
 
-    # smooth movement
-    dof_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-2.5e-5)
-    dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.1)
-    near_init_position = RewTerm(func=mdp.joint_deviation_l2, weight=-1)
+    # energy saving
+    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-2e-4)
 
     # follow commands
-    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.1)
+    # lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
+    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=1.0, 
+        weight=5.0, 
         params={
-            "std": 1.0,
+            "std": 0.5,
             "command_name": "base_velocity",
         },
     )
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_exp, 
-        weight=1.0, 
-        params={            
-            "std": 1.0,
+        weight=2.5, 
+        params={
+            "std": 0.5,
             "command_name": "base_velocity",
         },
     )
@@ -193,17 +185,17 @@ class RewardsCfg:
 class TerminationsCfg:
     """Termination terms for the MDP."""
 
-    # (1) Time out
+    # (1) time out
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    # (2) flip over
-    # flip_over = DoneTerm(
-    #     func=mdp.illegal_contact,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base"]), "threshold": 1.0},
-    # )
+    # (2) lie down
+    lie_down = DoneTerm(
+        func=mdp.illegal_contact,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base"]), "threshold": 1.0},
+    )
+    # (3) flip over
     flip_over = DoneTerm(
         func=mdp.bad_orientation,
         params={"limit_angle": math.pi / 2},
-        # time_out=True,  # treat flipping over as a time-out event to avoid sparse rewards at the beginning of training
     )
 
 @configclass
@@ -216,7 +208,9 @@ class CommandsCfg:
         rel_standing_envs=0.2,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.0, 1.0))
+            lin_vel_x=(-1, 1), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1, 1)
+            # lin_vel_x=(0, 0), lin_vel_y=(0, 0), ang_vel_z=(0, 0)
+        )
     )
 
 ##
@@ -227,7 +221,7 @@ class CommandsCfg:
 @configclass
 class Go2EnvCfg(ManagerBasedRLEnvCfg):
     # Scene settings
-    scene: Go2SceneCfg = Go2SceneCfg(num_envs=16, env_spacing=4.0)
+    scene: Go2SceneCfg = Go2SceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
