@@ -16,6 +16,8 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
+from isaaclab.terrains import TerrainImporterCfg
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils import configclass
 
 from . import mdp
@@ -25,6 +27,7 @@ from . import mdp
 ##
 
 from GO2.robots.GO2 import GO2_CONFIG
+from GO2.terrains.rough import ROUGH_TERRAINS_CFG
 
 
 ##
@@ -34,12 +37,22 @@ from GO2.robots.GO2 import GO2_CONFIG
 
 @configclass
 class Go2SceneCfg(InteractiveSceneCfg):
-    """Configuration for a cart-pole scene."""
+    """Configuration for a GO2 scene."""
 
-    # ground plane
-    ground = AssetBaseCfg(
+    # ground terrain
+    terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
+        terrain_type="generator",
+        terrain_generator=ROUGH_TERRAINS_CFG,
+        max_init_terrain_level=5,
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="multiply",
+            restitution_combine_mode="multiply",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+        ),
+        debug_vis=False,
     )
 
     # robot
@@ -158,7 +171,7 @@ class RewardsCfg:
     # near_init_position = RewTerm(func=mdp.joint_deviation_l1, weight=-0.05)
 
     # energy saving
-    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-2e-4)
+    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-1e-3)
 
     # follow commands
     # lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
@@ -179,6 +192,17 @@ class RewardsCfg:
             "command_name": "base_velocity",
         },
     )
+    # foot_clearance = RewTerm(
+    #     func=mdp.foot_clearance,
+    #     weight=-1.0,
+    #     params={
+    #         "target_height": 0.08,
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*foot"],
+    #         ),
+    #     },
+    # )
     
 
 @configclass
@@ -190,12 +214,13 @@ class TerminationsCfg:
     # (2) lie down
     lie_down = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base"]), "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base", ".*thigh", ".*hip"]), "threshold": 1.0},
     )
+    too_low = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.15})
     # (3) flip over
     flip_over = DoneTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": math.pi / 2},
+        params={"limit_angle": math.pi / 4},
     )
 
 @configclass
