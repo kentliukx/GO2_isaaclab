@@ -10,7 +10,7 @@ import isaaclab.terrains as terrain_gen
 from isaaclab.terrains.terrain_generator_cfg import TerrainGeneratorCfg
 
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
-    size=(200.0, 200.0),
+    size=(100.0, 100.0),
     border_width=0.0,
     num_rows=1,
     num_cols=1,

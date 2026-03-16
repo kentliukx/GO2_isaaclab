@@ -220,7 +220,7 @@ class TerminationsCfg:
     # (3) flip over
     flip_over = DoneTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": math.pi / 4},
+        params={"limit_angle": math.pi / 6},
     )
 
 @configclass
@@ -246,7 +246,7 @@ class CommandsCfg:
 @configclass
 class Go2EnvCfg(ManagerBasedRLEnvCfg):
     # Scene settings
-    scene: Go2SceneCfg = Go2SceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: Go2SceneCfg = Go2SceneCfg(num_envs=4096, env_spacing=1)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
