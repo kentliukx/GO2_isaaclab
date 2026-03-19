@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor
+from isaaclab.sensors import ContactSensor, FrameTransformer
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -71,16 +71,25 @@ def energy_consumption(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scene
     return torch.sum(torch.abs(asset.data.applied_torque[:, asset_cfg.joint_ids] * asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
 def foot_clearance(
-    env: ManagerBasedRLEnv,
-    target_height: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-    """Penalize foot height deviation during swing based on foot xy-speed.
+    env: ManagerBasedRLEnv, target_height: float, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize toe height deviation during swing based on foot xy-speed.
+
+    The toe position is read from the frame transformer target frames so the reward uses the
+    offset foot-tip coordinates instead of rigid-body origins.
 
     The term matches: sum_i (target_height - p_z^i)^2 * ||v_xy^i||.
-    This focuses the penalty on feet that are actively moving instead of feet that are planted.
     """
+    foot_transformer: FrameTransformer = env.scene.sensors[sensor_cfg.name]
     asset: Articulation = env.scene[asset_cfg.name]
-    foot_height = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
-    foot_xy_speed = torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=-1)
+    
+    toe_pos_w = foot_transformer.data.target_pos_w[:, sensor_cfg.body_ids, :]
+    body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
+    body_lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]
+    body_ang_vel_w = asset.data.body_ang_vel_w[:, asset_cfg.body_ids, :]
+
+    body_to_toe_w = toe_pos_w - body_pos_w
+    toe_lin_vel_w = body_lin_vel_w + torch.cross(body_ang_vel_w, body_to_toe_w, dim=-1)
+
+    foot_height = toe_pos_w[:, :, 2]
+    foot_xy_speed = torch.norm(toe_lin_vel_w[:, :, :2], dim=-1)
     return torch.sum(torch.square(target_height - foot_height) * foot_xy_speed, dim=1)
