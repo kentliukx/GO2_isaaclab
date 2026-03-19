@@ -15,7 +15,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg
+from isaaclab.sensors import ContactSensorCfg, FrameTransformerCfg, OffsetCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils import configclass
@@ -39,21 +39,26 @@ from GO2.terrains.rough import ROUGH_TERRAINS_CFG
 class Go2SceneCfg(InteractiveSceneCfg):
     """Configuration for a GO2 scene."""
 
-    # ground terrain
-    terrain = TerrainImporterCfg(
+    # ground plane
+    ground = AssetBaseCfg(
         prim_path="/World/ground",
-        terrain_type="generator",
-        terrain_generator=ROUGH_TERRAINS_CFG,
-        max_init_terrain_level=5,
-        collision_group=-1,
-        physics_material=sim_utils.RigidBodyMaterialCfg(
-            friction_combine_mode="multiply",
-            restitution_combine_mode="multiply",
-            static_friction=1.0,
-            dynamic_friction=1.0,
-        ),
-        debug_vis=False,
+        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
     )
+    # ground terrain
+    # terrain = TerrainImporterCfg(
+    #     prim_path="/World/ground",
+    #     terrain_type="generator",
+    #     terrain_generator=ROUGH_TERRAINS_CFG,
+    #     max_init_terrain_level=5,
+    #     collision_group=-1,
+    #     physics_material=sim_utils.RigidBodyMaterialCfg(
+    #         friction_combine_mode="multiply",
+    #         restitution_combine_mode="multiply",
+    #         static_friction=1.0,
+    #         dynamic_friction=1.0,
+    #     ),
+    #     debug_vis=False,
+    # )
 
     # robot
     robot: ArticulationCfg = GO2_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -70,6 +75,21 @@ class Go2SceneCfg(InteractiveSceneCfg):
         history_length=3,
         debug_vis=True,
         track_air_time=True,
+    )
+
+    # frame transformer
+    foot_frame_transformer = FrameTransformerCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base",
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/Robot/.*calf",
+                offset=OffsetCfg(
+                    pos=(0.0, 0.0, -0.22),
+                    rot=(1.0, 0.0, 0.0, 0.0),
+                )
+            )
+        ],
+        debug_vis=False,
     )
 
 
@@ -150,35 +170,12 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # Constant running reward
-    alive = RewTerm(func=mdp.is_alive, weight=10.0)
+    is_alive = RewTerm(func=mdp.is_alive, weight=3.0)
 
-    # stand
-    # stand = RewTerm(
-    #     func=mdp.base_height_l1,
-    #     weight=-5.0,
-    #     params={"target_height": 0.3},
-    # )
-    # undesired_contacts = RewTerm(
-    #     func=mdp.undesired_contacts,
-    #     weight=-2.0,
-    #     params={
-    #         "sensor_cfg": SceneEntityCfg(name="contact_forces",body_names=[".*thigh", ".*hip"]),
-    #         "threshold": 1.0,
-    #     },
-    # )
-    # flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0)
-    # This term helps shape the initial behavior of standing still
-    # near_init_position = RewTerm(func=mdp.joint_deviation_l1, weight=-0.05)
-
-    # energy saving
-    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-1e-3)
-
-    # follow commands
-    # lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
-    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    # Primary task: follow commands
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=5.0, 
+        weight=1.0, 
         params={
             "std": 0.5,
             "command_name": "base_velocity",
@@ -186,24 +183,47 @@ class RewardsCfg:
     )
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_exp, 
-        weight=2.5, 
+        weight=0.5, 
         params={
             "std": 0.5,
             "command_name": "base_velocity",
         },
     )
-    # foot_clearance = RewTerm(
-    #     func=mdp.foot_clearance,
-    #     weight=-1.0,
-    #     params={
-    #         "target_height": 0.08,
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*foot"],
-    #         ),
-    #     },
-    # )
+    # lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
+    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.01)
     
+    # Shaping task: walk like a real dog
+    base_height_l1 = RewTerm(
+        func=mdp.base_height_l1,
+        weight=-2.0,
+        params={"target_height": 0.3},
+    )
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0)
+    foot_clearance = RewTerm(
+        func=mdp.foot_clearance,
+        weight=-2.0, 
+        params={
+            "target_height": 0.1,
+            "sensor_cfg": SceneEntityCfg(
+                name="foot_frame_transformer",
+                body_names=[".*calf"],
+                ),
+            "asset_cfg": SceneEntityCfg(
+                name="robot",
+                body_names=[".*calf"],
+                ),
+        },
+    )
+    # This term helps shape the initial behavior of standing on four legs
+    # near_init_position = RewTerm(func=mdp.joint_deviation_l1, weight=-0.5)
+
+    # Shaping task: slow movements
+    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-5e-5)
+    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2e-7)
+    # action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+
+
+
 
 @configclass
 class TerminationsCfg:
@@ -212,15 +232,14 @@ class TerminationsCfg:
     # (1) time out
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     # (2) lie down
-    lie_down = DoneTerm(
+    illegal_contact = DoneTerm(
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base", ".*thigh", ".*hip"]), "threshold": 1.0},
     )
-    too_low = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.15})
     # (3) flip over
-    flip_over = DoneTerm(
+    bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": math.pi / 6},
+        params={"limit_angle": math.pi / 2},
     )
 
 @configclass
