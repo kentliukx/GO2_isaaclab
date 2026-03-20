@@ -1,0 +1,101 @@
+20260315_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: alive:10; power:-2e-4; track_xy_exp:5; track_yaw_exp:2.5
+Result: 50000 iter, 20260315_0.pt 身子向后倾斜、脚分的太开、脚跟不离地、高频小跳前进
+
+20260315_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: alive:10; power:-1e-3; track_xy_exp:5; track_yaw_exp:2.5
+Result: 30000 iter, 20260315_1.pt 同上，但小跳频率有减小、距离变长
+
+20260316_0
+terrain: random_rough
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: alive:10; power:-1e-3; track_xy_exp:5; track_yaw_exp:2.5
+Result: 24500 iter, 20260316_0.pt 站着不动，偶尔尝试迈步，但是迈不出去
+
+20260318_0
+terrain: random_rough
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: alive:10; power:-2e-4; track_xy_exp:5; track_yaw_exp:2.5
+Result: 32000 iter, 20260318_0.pt 步态初步有规律，两前腿/两后腿主要小跳前进，有时先后跨步，总体步长仍偏小
+Note：在Rough terrain上面训练的噪声感觉比较大，感觉要在平地上面先规范出动作，再去历练一番
+
+20260318_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:10; track_xy_exp:5; track_yaw_exp:2.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.1; base_height_l1:-5; 
+        flat_orientation_l2:-5; energy_consumption:-1e-4; action_rate_l2:-0.05; joint_acc_l2:-1e-6
+Result: 16500 iter, 20260318_1.pt 一条前腿悬空，另外三条腿在地上拖沓
+Note: 可能是因为加了稳定性惩罚，所以不小跳了，在地上滑行稳定一些
+
+20260319_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:10; track_xy_exp:5; track_yaw_exp:2.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.1; base_height_l1:-5; 
+        flat_orientation_l2:-5; energy_consumption:-2e-4; foot_clearance:-5
+Result: 31749 iter, 20260319_0.pt 现在前腿有明显的交替的步态，但后腿不明显，在地上拖沓。动作频率太快。
+Note: 尝试加大一点foot_clearance的惩罚，并且加大energy_saving的惩罚
+
+20260319_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:10; track_xy_exp:5; track_yaw_exp:2.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.1; base_height_l1:-5; 
+        flat_orientation_l2:-5; energy_consumption:-5e-4; foot_clearance:-10
+Result: 10000 iter, 20260319_1.pt 前腿小跳前进，后腿在地上拖沓，频率依然很快
+Note: 如何避免小跳前进？可能要加accel惩罚，避免频繁改变动作方向，同时用energy惩罚大跳
+
+20260319_2
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-5; 
+        flat_orientation_l2:-5; energy_consumption:-5e-5; joint_acc_l2：-1e-7; foot_clearance:-2
+Result: 11000 iter, 20260319_2.pt 扭曲姿态，三条腿着地，在地上高频率抖动。
+Note: 这回调整奖励尺度为原来的五分之一。为了减少倾斜和机身起伏，这俩系数不变，相当于惩罚变大了五倍。可能是因为太要求稳定或加速度惩罚太小导致的。
+
+----- model_start_0经过了250iter，能稳定存活，以下训练均以model_start_0.pt为checkpoint继续 -----
+
+20260319_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2; 
+        flat_orientation_l2:-2; energy_consumption:-5e-5; joint_acc_l2：-2e-7; foot_clearance:-2
+Result: 12500 iter, 20260319_3.pt 后腿小腿着地，前腿腾空，高频率抖动前进
+Note: 可能是foot_clearance太大导致前腿腾空的。
+
+20260320_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; base_height_l1:-2; 
+        flat_orientation_l2:-2; energy_consumption:-5e-5; joint_acc_l2：-2e-7; foot_clearance:-2
+Result: 32500 iter, 20260320_0.pt 后腿小腿着地，前腿腾空，抖动前进
+Note: 同上。感觉训练时去掉wxy和vz惩罚对于促进步态没什么作用。尝试一下减少foot_clearance。或许在acc和机身角度的惩罚下会迈大步？
+
+20260320_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; base_height_l1:-2; 
+        flat_orientation_l2:-2; energy_consumption:-5e-5; joint_acc_l2：-2e-7;
+Result: 5750 iter, 20260320_1.pt 右前腿悬空
+Note: 已经没有foot_clearance了，但是还是右前腿悬空，和20260319_2一样。对比20260319_1，是因为加大了机身高度和倾斜的惩罚么？
+
+20260320_2
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; base_height_l1:-1; 
+        flat_orientation_l2:-1; energy_consumption:-5e-5; joint_acc_l2：-2e-7;
+Result: 2750 iter, 20260320_2.pt 后腿小腿着地，前腿腾空，抖动前进，注意到右前腿相比左前腿稍微更加收紧
+Note: 关于后小腿着地、前腿腾空，经过分析pattern形成过程，发现是joint_acc_l2导致的，可能坐在小腿上加速度就小了，去掉后就再次训练就正常了。
+
+20260320_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; base_height_l1:-1; 
+        flat_orientation_l2:-1; energy_consumption:-5e-5; foot_clearance:-5
+Result: 17350 iter, 20260320_3.pt 左前腿悬空，其他三条腿小碎步，迈步的比较高。
+Note: 左前腿悬空或许是foot clearance过大导致的。同时没有加vz、wxy、acc惩罚，能量惩罚可能也有点小。或许可以修改critic的obs，强调接触状态。
+
+20260320_4
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-1;
+        flat_orientation_l2:-1; energy_consumption:-5e-5; foot_clearance:-2;
+Result: 2250 iter, 20260320_4.pt 右前腿悬空，其他三条腿小碎步，机身较低，后腿叉开。
+Note: 加入vz、wxy惩罚后，机体高度迅速变低，需要加大机体高度、倾斜的惩罚。似乎强调平稳不能促使产生步态。尝试一下加feet_air_time的奖励。
+
+20260320_5
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5
+Result: 7500 iter, 20260320_5.pt 右前腿悬空，两条腿步态明显，机身平稳
+Note: 把feet_air_time小改了一下，防止腿三秒钟落一次地刷奖励。还需要惩罚一直逃避落地。
