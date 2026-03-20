@@ -189,8 +189,8 @@ class RewardsCfg:
             "command_name": "base_velocity",
         },
     )
-    # lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
-    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.01)
+    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.01)
     
     # Shaping task: walk like a real dog
     base_height_l1 = RewTerm(
@@ -214,12 +214,35 @@ class RewardsCfg:
                 ),
         },
     )
+    feet_air_time = RewTerm(
+        func=mdp.feet_air_time,
+        weight=0.5,
+        params={
+            "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg(
+                name="contact_forces",
+                body_names=[".*calf"],
+            ),
+            "threshold": 0.5,
+        },
+    )
+    feet_air_time_excess = RewTerm(
+        func=mdp.feet_air_time_excess,
+        weight=-1.0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                name="contact_forces",
+                body_names=[".*calf"],
+            ),
+            "threshold": 1.0,
+        },
+    )
     # This term helps shape the initial behavior of standing on four legs
     # near_init_position = RewTerm(func=mdp.joint_deviation_l1, weight=-0.5)
 
     # Shaping task: slow movements
-    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-5e-5)
-    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2e-7)
+    energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-1e-4)
+    # joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2e-7)
     # action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
 
 
