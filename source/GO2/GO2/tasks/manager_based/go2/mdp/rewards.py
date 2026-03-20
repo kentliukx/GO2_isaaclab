@@ -58,10 +58,19 @@ def feet_air_time(env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEn
     # compute the reward
     first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
     last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
-    reward = torch.sum((last_air_time - threshold) * first_contact, dim=1)
-    # no reward for zero command
-    reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+    # Only penalize short swing durations; do not reward excessively long airtime.
+    reward = torch.sum(torch.clamp(last_air_time - threshold, max=0.0) * first_contact, dim=1)
     return reward
+
+def feet_air_time_excess(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    threshold: float,
+) -> torch.Tensor:
+    """Apply a constant penalty when any selected foot stays airborne too long."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    current_air_time = contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    return torch.any(current_air_time > threshold, dim=1).float()
 
 def energy_consumption(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize energy consumption."""
