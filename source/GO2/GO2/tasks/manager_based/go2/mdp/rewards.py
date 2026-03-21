@@ -102,3 +102,26 @@ def foot_clearance(
     foot_height = toe_pos_w[:, :, 2]
     foot_xy_speed = torch.norm(toe_lin_vel_w[:, :, :2], dim=-1)
     return torch.sum(torch.square(target_height - foot_height) * foot_xy_speed, dim=1)
+
+def foot_slip(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    foot_transformer_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    air_time_threshold: float = 0.1,
+) -> torch.Tensor:
+    """Penalize toe xy-speed squared when the last air time is shorter than a threshold."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    foot_transformer: FrameTransformer = env.scene.sensors[foot_transformer_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    short_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids] < air_time_threshold
+    toe_pos_w = foot_transformer.data.target_pos_w[:, foot_transformer_cfg.body_ids, :]
+    body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
+    body_lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]
+    body_ang_vel_w = asset.data.body_ang_vel_w[:, asset_cfg.body_ids, :]
+
+    body_to_toe_w = toe_pos_w - body_pos_w
+    toe_lin_vel_w = body_lin_vel_w + torch.cross(body_ang_vel_w, body_to_toe_w, dim=-1)
+    toe_xy_speed_sq = torch.sum(torch.square(toe_lin_vel_w[:, :, :2]), dim=-1)
+    return torch.sum(short_air_time.float() * toe_xy_speed_sq, dim=1)
