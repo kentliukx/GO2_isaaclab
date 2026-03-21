@@ -99,3 +99,44 @@ Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_ve
         flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5
 Result: 7500 iter, 20260320_5.pt 右前腿悬空，两条腿步态明显，机身平稳
 Note: 把feet_air_time小改了一下，防止腿三秒钟落一次地刷奖励。还需要惩罚一直逃避落地。
+
+20260321_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5; feet_air_time_excess:-1
+Result: 50250 iter, 20260321_0.pt 右前/左后腿偶尔点一下地，左前腿步态明显。
+Note: 尝试把contact_forces的检测阈值增大到了10，促进重心转移。分析log，发现不愿意接触地面，是由于foot_clearance和feet_air_time的惩罚。
+        这都不愿意换支撑腿，会不会是因为速度命令在一开始的噪声太大了？或者obs需要加入接触状态、机体线速度？
+
+20260321_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5; feet_air_time_excess:-1;
+        joint_acc_l2：-2e-7
+Result: 3000 iter, 20260321_1.pt 右前腿偶尔点一下地
+Note: 在把contact_forces的检测阈值增大到20试试看。还有后腿不愿意迈步是不是因为一直在在撞到限位？
+
+20260321_2
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5; feet_air_time_excess:-1;
+        joint_acc_l2：-2e-7; dof_pos_limits:-1
+Result: 3500 iter, 20260321_2.pt 又有坐在后腿上面的倾向了，重心还是不转移到前面两条腿
+Note: 感觉joint_acc_l2要放在最后加；foot_clearance感觉也要放到最后去，否则不碰地，尝试改成foot_slip。
+
+20260321_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_slip:-0.01; feet_air_time: 0.5; feet_air_time_excess:-1;
+        joint_acc_l2：-1e-7; dof_pos_limits:-1
+Result: 2000 iter, 20260321_3.pt 还是坐在后腿上，右前腿扭曲。
+Note: 感觉是之前limit的惩罚让后腿不撞限位、开始抖了，发现坐在后腿上能减少抖动。真的是一点都不能加。
+
+20260321_4
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_slip:-0.01; feet_air_time: 0.5; feet_air_time_excess:-1;
+        dof_pos_limits:-1
+Result: 15250 iter, 20260321_4.pt 还是后面两个小腿着地，重心不移到前面去。
+Note: 可能就是后腿膝关节不卡了，然后就发现坐在上面不会抖、不会滑。分析log曲线可能是wxy和foot_slip大量减小。
+        另外发现entrophy_coeff是论文的1/10，这很不鼓励探索，感觉这个得先改，让参数不变看看效果
