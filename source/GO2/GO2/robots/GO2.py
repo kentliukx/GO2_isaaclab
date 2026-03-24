@@ -39,15 +39,28 @@ GO2_CONFIG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.95,
     actuators={
-        "all_joints": DCMotorCfg(
+        "hip_and_thigh_actuator": DCMotorCfg(
             joint_names_expr=[
-                "FL_thigh_joint", "FL_hip_joint", "FL_calf_joint",
-                "FR_thigh_joint", "FR_hip_joint", "FR_calf_joint",
-                "RL_thigh_joint", "RL_hip_joint", "RL_calf_joint",
-                "RR_thigh_joint", "RR_hip_joint", "RR_calf_joint"],
-            effort_limit=23.5,
-            saturation_effort=23.5,
-            velocity_limit=30.0,
+                "FL_thigh_joint", "FL_hip_joint",
+                "FR_thigh_joint", "FR_hip_joint",
+                "RL_thigh_joint", "RL_hip_joint",
+                "RR_thigh_joint", "RR_hip_joint",
+            ],
+            effort_limit=23.7,
+            saturation_effort=23.7,
+            stiffness=25.0,
+            damping=0.5,
+            friction=0.0,
+        ),
+        "calf_actuator": DCMotorCfg(
+            joint_names_expr=[
+                "FL_calf_joint",
+                "FR_calf_joint",
+                "RL_calf_joint",
+                "RR_calf_joint",
+            ],
+            effort_limit=35.5,
+            saturation_effort=35.5,
             stiffness=25.0,
             damping=0.5,
             friction=0.0,
