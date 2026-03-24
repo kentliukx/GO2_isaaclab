@@ -115,7 +115,6 @@ class ActionsCfg:
             "FR_thigh_joint", "FR_hip_joint", "FR_calf_joint",
             "RL_thigh_joint", "RL_hip_joint", "RL_calf_joint",
             "RR_thigh_joint", "RR_hip_joint", "RR_calf_joint"],
-        scale=math.pi,
     )
 
 
@@ -133,12 +132,13 @@ class ObservationsCfg:
             params={
                 "command_name": "base_velocity"
             },
+            scale=1.0
         )
-        last_action = ObsTerm(func=mdp.last_action)
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel)
-        projected_gravity = ObsTerm(func=mdp.projected_gravity)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        last_action = ObsTerm(func=mdp.last_action, scale=1.0)
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, scale=1.0)
+        joint_vel = ObsTerm(func=mdp.joint_vel, scale=0.05)
+        projected_gravity = ObsTerm(func=mdp.projected_gravity, scale=1.0)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
@@ -295,7 +295,7 @@ class TerminationsCfg:
     # (2) lie down
     illegal_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base", ".*thigh", ".*hip"]), "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base", ".*hip"]), "threshold": 1.0},
     )
     # (3) flip over
     bad_orientation = DoneTerm(
@@ -313,8 +313,7 @@ class CommandsCfg:
         rel_standing_envs=0.1,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1, 1), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1, 1)
-            # lin_vel_x=(0, 0), lin_vel_y=(0, 0), ang_vel_z=(0, 0)
+            lin_vel_x=(-1, 1), lin_vel_y=(-1, 1), ang_vel_z=(-1, 1)
         )
     )
 
