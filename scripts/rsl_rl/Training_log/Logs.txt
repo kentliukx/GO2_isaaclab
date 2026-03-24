@@ -120,7 +120,7 @@ Note: 在把contact_forces的检测阈值增大到20试试看。还有后腿不�
 Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
 Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
         flat_orientation_l2:-2; energy_consumption:-1e-4; foot_clearance:-2; feet_air_time: 0.5; feet_air_time_excess:-1;
-        joint_acc_l2：-2e-7; dof_pos_limits:-1
+        joint_acc_l2：-2e-7; joint_pos_limits:-1
 Result: 3500 iter, 20260321_2.pt 又有坐在后腿上面的倾向了，重心还是不转移到前面两条腿
 Note: 感觉joint_acc_l2要放在最后加；foot_clearance感觉也要放到最后去，否则不碰地，尝试改成foot_slip。
 
@@ -128,7 +128,7 @@ Note: 感觉joint_acc_l2要放在最后加；foot_clearance感觉也要放到最
 Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
 Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
         flat_orientation_l2:-2; energy_consumption:-1e-4; foot_slip:-0.01; feet_air_time: 0.5; feet_air_time_excess:-1;
-        joint_acc_l2：-1e-7; dof_pos_limits:-1
+        joint_acc_l2：-1e-7; joint_pos_limits:-1
 Result: 2000 iter, 20260321_3.pt 还是坐在后腿上，右前腿扭曲。
 Note: 感觉是之前limit的惩罚让后腿不撞限位、开始抖了，发现坐在后腿上能减少抖动。真的是一点都不能加。
 
@@ -136,7 +136,171 @@ Note: 感觉是之前limit的惩罚让后腿不撞限位、开始抖了，发现
 Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
 Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
         flat_orientation_l2:-2; energy_consumption:-1e-4; foot_slip:-0.01; feet_air_time: 0.5; feet_air_time_excess:-1;
-        dof_pos_limits:-1
+        joint_pos_limits:-1
 Result: 15250 iter, 20260321_4.pt 还是后面两个小腿着地，重心不移到前面去。
 Note: 可能就是后腿膝关节不卡了，然后就发现坐在上面不会抖、不会滑。分析log曲线可能是wxy和foot_slip大量减小。
         另外发现entrophy_coeff是论文的1/10，这很不鼓励探索，感觉这个得先改，让参数不变看看效果
+
+20260321_5
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; base_height_l1:-2;
+        flat_orientation_l2:-2; energy_consumption:-1e-4; foot_slip:-0.01; feet_air_time: 0.5; feet_air_time_excess:-1;
+        joint_pos_limits:-1
+Result: 1500 iter, 20260321_5.pt 同上
+Note: 把entrophy_coeff加大到0.01后直接发散了，这次是采取默认的0.005。看来坐在后腿的这个问题和超参数没关系，我感觉可能是开始的checkpoint姿势不好。
+
+----- 以下均从头开始训练 -----
+
+Reflections：
+之前训练的时候，发现特别容易收敛到奇奇怪怪的姿势上面去，所以不得已加了一个near_init_pos的很大的惩罚，让他在前250个iter内可以正常站稳，再继续训练。
+这有几个问题：1、entrophy_coeff为0.001太小，探索性不足，导致陷入局部最优。
+        2、如果先人为规定站定，尽管actor此时可能相似，但是critic过拟合站定附近state，在真正最优解附近可能相差很大，actor难以到达最优解附近。
+        （即便从model_start_0开始，以0.005的entrophy_coeff继续训练也依然两后小腿着地）
+因此需要：1、适度鼓励探索（0.001时不探索、会收敛到扭曲姿态；默认0.005和0.01在250iter时有明显步态，效果较好）、
+        2、训练开始确定奖励后，避免过多人为干预。
+
+20260321_6
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:4; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; feet_air_time: 0.5; feet_air_time_excess:-1; joint_pos_limits:-1; 
+        energy_consumption:-2e-4; joint_acc_l2:-2e-7
+Result: 1500 iter, 又是后面两个小腿着地
+Note：尝试了一下把foot_slip去掉，效果不好，加回来。
+
+20260321_7
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:4; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.01; feet_air_time: 0.5; feet_air_time_excess:-1; joint_pos_limits:-1; 
+        energy_consumption:-2e-4; joint_acc_l2:-2e-7
+Result: 1500 iter, 这下是对角线两条腿着地，剩下两条腿小腿收着摇来摇去
+Note：这是什么情况，为什么20260321_5把entrophy_coeff参数改对为0.005、从头训就可以，现在就不行？
+
+20260321_8
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.01; feet_air_time: 0.5; feet_air_time_excess:-1; joint_pos_limits:-1; 
+        energy_consumption:-1e-4;
+Result: 2000 iter, 步态太明显了，但是都是手肘着地。
+Note: 破案了，收着摇来摇去是因为收起来就不会被smooth_movement惩罚了；扭曲姿势只要加大joint_pos_limits的惩罚就可以了；
+      前腿离地是因为feet_air_time_excess判定阈值改成了2秒。但是稳定性肯定还是要的；只能想办法了。
+      另，为什么特别喜欢手肘着地吃高度惩罚？可能这样能够省能量吧，可能需要把save_energy改成joint_speed了。
+
+20260322_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:4; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.01; feet_air_time: 0.5; feet_air_time_excess:-5; joint_pos_limits:-5; 
+        energy_consumption:-2e-5; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2: -0.01
+Result: 45500 iter, 学会了高妙的平衡术，右边后腿在好好走路，而左边后腿在地上托行，前面两条腿有时候稍微接触地面。
+Note: 现在不是手肘着地了，这个好。但可能还要把那个1N和15N接触地面的区别，给他加回来。要不然有的腿就在那边摸鱼。
+      或许这是因为软限位太大，导致不敢转到附近么？尝试把软限位系数改到0.95试试看。
+
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:4; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.01; feet_air_time: 0.5; feet_air_time_excess:-5; joint_pos_limits:-5; 
+        energy_consumption:-2e-5; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2: -0.01
+Result: 500 iter, 手肘、膝盖着地在砸地板。
+Note: 尝试把entrophy_coeff改到0.01试试看，促进探索一点，更能学到机身高的姿态
+
+20260322_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:4; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.01; feet_air_time: 0.5; feet_air_time_excess:-5; joint_pos_limits:-5; 
+        energy_consumption:-2e-5; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2: -0.01
+Result: 3000 iter, 右边后腿在好好走路，而左边后腿在地上托行，前面两条腿有时候稍微接触地面。
+Note: 必须对左后腿拖地予以重拳出击了！
+
+20260322_2
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.02; feet_air_time: 0.5; feet_air_time_excess:-5; joint_pos_limits:-5; 
+        energy_consumption:-2e-5; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2: -0.01
+Result: 4500 iter, 依然膝盖着地，坐在双腿上面，只不过这回双腿会抬起来移动了。
+Note: 估计需要加一个，如果着地的时候膝盖太低的惩罚。
+
+20260322_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-2; flat_orientation_l2:-2; foot_slip: -0.02; feet_air_time: 0.5; feet_air_time_excess:-5; 
+        ankle_height_too_low:-1; joint_pos_limits:-5; 
+        energy_consumption:-2e-5; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2: -0.01
+Result: 8250 iter, 两条腿着地拖行，剩下两条腿打地板
+Note: 惩罚膝盖太低就不敢弯腿了，一直撞到膝盖限位。
+
+Reflections:
+之前entrophy_coeff改对之后，总是膝盖和手肘和地面接触。我尝试把稳定性的惩罚改小、把机身高度姿态惩罚改大，唯一的效果就是手臂和腿绷紧，也走不了。
+我看了一下isaaclab的例子，里面对thigh着地有惩罚。于是改了一下urdf和usd，让手肘着地时thigh和地面接触，惩罚这个。按照这个例子试试看。
+
+20260322_4
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:1; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; joint_pos_limits:-1; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 1000 iter, 扭曲姿势，三条腿叉开
+Note: 加大一点撞限位的惩罚
+
+20260322_5
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:1; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 3500 iter, 右后腿不着地，其他三条腿步态很好
+Note: 我觉得快了。我把那个excess_time给加回来看看。
+
+20260322_6
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:1; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 12000 iter, 四条腿都有步态了，但是后腿在使劲砸地板
+Note: 可能是那个contact_sensor的15N的力太大了。把那些稳定性惩罚加大一点，然后把接触判定减小成1N。
+
+20260323_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2.5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-1; ang_vel_xy_l2:-0.01; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01
+Result: 50000 iter, 前面的腿在地上不离开，后面的腿在砸地板
+Note: 根据log分析，看来是要求稳定性太大了。因此尝试把稳定性改回原来的水平，看看单单减小接触检测如何。
+
+20260323_1
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 2500 iter, 四条腿都有步态了，但是后腿在使劲砸地板
+Note: 现在后腿还是太高了，这怎么办才好呢？能不能把foot_clearance请回来，惩罚他太高呢？
+
+20260323_2
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 31500 iter, 又是平衡大师，对角线两条腿正常走路，剩下两条腿点地
+Note: foot_clearance加回来之后就不会用力砸地板了。但是又是脚点地，看来需要把15N的接触力给请回来。
+
+20260323_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-0.5; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 3000 iter, 同上。
+Note: 把air_time改成只惩罚的试试看，不要一直再空中刷奖励。
+
+20260323_3
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-0.5; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 4750 iter, 同上。
+Note: foot_clearance在log里面看来，已经很小了，感觉不是这个的问题。还是尝试一下excess_time减小阈值吧，加大惩罚试试看。
+
+20260324_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-0.5; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 30000 iter, 四条腿都有步态了，但是后腿在使劲砸地板
+Note: 现在excess_time是15N的阈值。时间改成了0.75秒超时。不敢平衡大师了。现在尝试加大一下foot_clearance的惩罚到-1看看。
+
+
+
