@@ -37,7 +37,7 @@ GO2_CONFIG = ArticulationCfg(
             "RR_thigh_joint": 0.8, "RR_hip_joint": -0.3, "RR_calf_joint": -1.6
         },
     ),
-    soft_joint_pos_limit_factor=0.9,
+    soft_joint_pos_limit_factor=0.95,
     actuators={
         "all_joints": DCMotorCfg(
             joint_names_expr=[
