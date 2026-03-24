@@ -302,5 +302,10 @@ Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_ve
 Result: 30000 iter, 四条腿都有步态了，但是后腿在使劲砸地板
 Note: 现在excess_time是15N的阈值。时间改成了0.75秒超时。不敢平衡大师了。现在尝试加大一下foot_clearance的惩罚到-1看看。
 
-
-
+20260324_0
+Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
+Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
+        base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
+Result: 30000 iter, 又是平衡大师，对角线两条腿正常走路，剩下两条腿点地
+Note: 没办法了，要么就是使劲打地板，要么就是脚点地，不知道怎么办才好了
