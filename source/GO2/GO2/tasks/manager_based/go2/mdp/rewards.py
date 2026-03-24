@@ -23,6 +23,29 @@ def joint_deviation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scene
     angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
     return torch.sum(torch.square(angle), dim=1)
 
+def action_smoothness_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalize action jerk using the squared second-order finite difference."""
+    current_action = env.action_manager.action
+
+    if not hasattr(env, "_action_prev"):
+        env._action_prev = current_action.clone()
+    if not hasattr(env, "_action_prev_prev"):
+        env._action_prev_prev = current_action.clone()
+
+    reset_mask = env.episode_length_buf <= 1
+    env._action_prev[reset_mask] = current_action[reset_mask]
+    env._action_prev_prev[reset_mask] = current_action[reset_mask]
+
+    second_diff = current_action - 2.0 * env._action_prev + env._action_prev_prev
+    reward = torch.sum(torch.square(second_diff), dim=1)
+
+    # The first two steps after a reset do not have enough history for a valid second difference.
+    reward = reward * (env.episode_length_buf > 2).float()
+
+    env._action_prev_prev[:] = env._action_prev
+    env._action_prev[:] = current_action
+    return reward
+
 def base_height_l1(
     env: ManagerBasedRLEnv,
     target_height: float,
@@ -44,7 +67,9 @@ def desired_contacts_sum(env:ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, thre
     contacts_sum = contacts.sum(dim=-1)
     return 1.0 * contacts_sum
 
-def feet_air_time(env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg,  threshold: float) -> torch.Tensor:
+def feet_air_time(
+    env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg, threshold: float
+) -> torch.Tensor:
     """Reward long steps taken by the feet using L2-kernel.
 
     This function rewards the agent for taking steps that are longer than a threshold. This helps ensure
