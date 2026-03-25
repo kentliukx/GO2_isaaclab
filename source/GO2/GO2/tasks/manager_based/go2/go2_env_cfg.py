@@ -144,8 +144,15 @@ class ObservationsCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    @configclass
+    class CriticCfg(PolicyCfg):
+        """Privileged observations for critic group."""
+
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, scale=2.0)
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
+    critic: CriticCfg = CriticCfg()
 
 
 @configclass
