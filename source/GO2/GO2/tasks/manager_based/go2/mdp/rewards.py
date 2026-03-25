@@ -68,7 +68,7 @@ def desired_contacts_sum(env:ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, thre
     return 1.0 * contacts_sum
 
 def feet_air_time(
-    env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg, threshold: float
+    env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg, threshold: float, max_reward_time: float
 ) -> torch.Tensor:
     """Reward long steps taken by the feet using L2-kernel.
 
@@ -83,8 +83,22 @@ def feet_air_time(
     # compute the reward
     first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
     last_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids]
-    # Only penalize short swing durations; do not reward excessively long airtime.
-    reward = torch.sum(torch.clamp(last_air_time - threshold, max=0.0) * first_contact, dim=1)
+    # reward steps longer than the threshold; do not reward excessively long airtime.
+    reward = torch.sum(torch.clamp(last_air_time - threshold, max=max_reward_time - threshold) * first_contact, dim=1)
+    # no reward for zero command
+    reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+    return reward
+
+def feet_ground_time(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    threshold: float,
+) -> torch.Tensor:
+    """Penalize short stance durations when a foot leaves the ground."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    first_air = contact_sensor.compute_first_air(env.step_dt)[:, sensor_cfg.body_ids]
+    last_contact_time = contact_sensor.data.last_contact_time[:, sensor_cfg.body_ids]
+    reward = torch.sum(torch.clamp(last_contact_time - threshold, max=0.0) * first_air, dim=1)
     return reward
 
 def feet_air_time_excess(
@@ -140,7 +154,7 @@ def foot_slip(
     foot_transformer: FrameTransformer = env.scene.sensors[foot_transformer_cfg.name]
     asset: Articulation = env.scene[asset_cfg.name]
 
-    short_air_time = contact_sensor.data.last_air_time[:, sensor_cfg.body_ids] < air_time_threshold
+    short_air_time = contact_sensor.data.current_air_time[:, sensor_cfg.body_ids] <= air_time_threshold
     toe_pos_w = foot_transformer.data.target_pos_w[:, foot_transformer_cfg.body_ids, :]
     body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
     body_lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]
