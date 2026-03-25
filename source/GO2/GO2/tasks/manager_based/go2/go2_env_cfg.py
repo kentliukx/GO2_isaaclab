@@ -81,7 +81,7 @@ class Go2SceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/.*", 
         debug_vis=True,
         track_air_time=True,
-        force_threshold=15,
+        force_threshold=40,
     )
 
     # frame transformer
@@ -177,7 +177,7 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # Constant running reward
-    is_alive = RewTerm(func=mdp.is_alive, weight=2)
+    is_alive = RewTerm(func=mdp.is_alive, weight=5)
 
     # Primary task: follow commands
     track_lin_vel_xy_exp = RewTerm(
@@ -196,60 +196,72 @@ class RewardsCfg:
             "command_name": "base_velocity",
         },
     )
-    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.5)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-5e-3)
+    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2)
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.02)
     
     # Shaping task: walk like a real dog
-    base_height_l1 = RewTerm(
-        func=mdp.base_height_l1,
+    base_height_l2 = RewTerm(
+        func=mdp.base_height_l2,
         weight=-1.0,
         params={"target_height": 0.3},
     )
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
-    # foot_slip = RewTerm(
-    #     func=mdp.foot_slip,
-    #     weight=-0.01,
-    #     params={
-    #         "sensor_cfg": SceneEntityCfg(
-    #             name="contact_forces",
-    #             body_names=[".*calf"],
-    #         ),
-    #         "foot_transformer_cfg": SceneEntityCfg(
-    #             name="foot_frame_transformer",
-    #             body_names=[".*calf"],
-    #         ),
-    #         "asset_cfg": SceneEntityCfg(
-    #             name="robot",
-    #             body_names=[".*calf"],
-    #         ),
-    #         "air_time_threshold": 0.1,
-    #     },
-    # )
-    foot_clearance = RewTerm(
-        func=mdp.foot_clearance,
-        weight=-1, 
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.2)
+    foot_slip = RewTerm(
+        func=mdp.foot_slip,
+        weight=-0.1,
         params={
-            "target_height": 0.1,
             "sensor_cfg": SceneEntityCfg(
+                name="contact_forces",
+                body_names=[".*calf"],
+            ),
+            "foot_transformer_cfg": SceneEntityCfg(
                 name="foot_frame_transformer",
                 body_names=[".*calf"],
-                ),
+            ),
             "asset_cfg": SceneEntityCfg(
                 name="robot",
                 body_names=[".*calf"],
-                ),
+            ),
+            "air_time_threshold": 0,
         },
     )
+    # foot_clearance = RewTerm(
+    #     func=mdp.foot_clearance,
+    #     weight=-1, 
+    #     params={
+    #         "target_height": 0.1,
+    #         "sensor_cfg": SceneEntityCfg(
+    #             name="foot_frame_transformer",
+    #             body_names=[".*calf"],
+    #             ),
+    #         "asset_cfg": SceneEntityCfg(
+    #             name="robot",
+    #             body_names=[".*calf"],
+    #             ),
+    #     },
+    # )
     feet_air_time = RewTerm(
         func=mdp.feet_air_time,
-        weight=0.1,
+        weight=0.2,
         params={
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg(
                 name="contact_forces",
                 body_names=[".*calf"],
             ),
-            "threshold": 0.5,
+            "threshold": 0.3,
+            "max_reward_time": 0.6,
+        },
+    )
+    feet_ground_time = RewTerm(
+        func=mdp.feet_ground_time,
+        weight=1,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                name="contact_forces",
+                body_names=[".*calf"],
+            ),
+            "threshold": 0.5
         },
     )
     feet_air_time_excess = RewTerm(
@@ -278,10 +290,10 @@ class RewardsCfg:
 
     # Shaping task: slow movements
     energy_consumption = RewTerm(func=mdp.energy_consumption, weight=-1e-4)
-    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2e-8)
-    joint_speed_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-5e-5)
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-5e-3)
-    # action_smoothness_l2 = RewTerm(func=mdp.action_smoothness_l2, weight=-0.01)
+    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-5e-8)
+    joint_speed_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-1e-4)
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_smoothness_l2 = RewTerm(func=mdp.action_smoothness_l2, weight=-0.01)
 
 
 
