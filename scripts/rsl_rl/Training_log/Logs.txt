@@ -302,10 +302,88 @@ Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_ve
 Result: 30000 iter, 四条腿都有步态了，但是后腿在使劲砸地板
 Note: 现在excess_time是15N的阈值。时间改成了0.75秒超时。不敢平衡大师了。现在尝试加大一下foot_clearance的惩罚到-1看看。
 
-20260324_0
+20260324_1
 Command: x:-1~1; y:-0.5~+0.5; yaw:-1~+1
 Reward: is_alive:2; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-0.5; ang_vel_xy_l2:-5e-3; 
         base_height_l1:-1; flat_orientation_l2:-1; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-1; joint_pos_limits:-5; 
         energy_consumption:-1e-4; joint_acc_l2:-2e-8; joint_speed_l2:-5e-5; action_rate_l2:-5e-3
 Result: 30000 iter, 又是平衡大师，对角线两条腿正常走路，剩下两条腿点地
 Note: 没办法了，要么就是使劲打地板，要么就是脚点地，不知道怎么办才好了
+
+Reflections:
+按照学长的建议，今天中午配了legged gym的环境，下午实验室折腾到了晚上，总算是发现问题所在了：
+1、行走的任务，根本不需要用512,256,128的MLP，只需要128,64,32就足够了，这样导致训练的速度很慢；
+2、之前的action_scale是PI，这个太大了，就导致关节一直在抖。这个要改的小一些，才能学习到平滑动作带来的好处。
+3、把obs_scale进行放缩到大致一个尺度。
+
+20260324_2
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-5; foot_clearance:-0.01; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 1000 iter, 四个脚在地上拖行
+Note: 加大foot_clearance看一看
+
+20260324_3
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-1; foot_clearance:-0.5; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 750 iter, 三个脚在地上拖行，剩下右前脚点地
+Note: 再加大foot_clearance，把airtime excess改回5
+
+20260324_4
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-5; foot_clearance:-1; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 750 iter, 四个脚在地上拖行，高度很低
+Note: 我觉得需要引导他迈步。尝试一下奖励迈步，把feet_air_time改成大于0.3就奖励，最大0.2,然后把foot slip加回来
+
+20260324_5
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-5; foot_slip:-0.01; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 1000 iter, 三个脚在地上拖行，剩下右前脚点地
+Note: 把foot slip改大，把air time excess的阈值改成1s，再把slip的判定时间改成0看看。
+
+20260325_0
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 1000 iter, 三个脚有比较好的步态了，但是右前腿点地
+Note: 感觉还是要把air time excess的阈值改回0.75s。
+
+20260325_1
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:3; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 500 iter, 还是有些拖行
+Note: 感觉还是要把air time excess的阈值改回1s，否则都不敢抬腿。我觉得需要专门惩罚一下点地。
+
+20260325_2
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:0.5; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 500 iter, 都有步态，但是重心没有移到每条腿上面去
+Note: 尝试把contact_forces的检测阈值增大到了40，促进重心转移。
+
+20260325_3
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:0.5; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 500 iter, 都有步态，但是重心没有移到每条腿上面去
+Note: 感觉是点地惩罚没有起到作用，增加一点权重
+
+20260325_4
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 5000 iter, 奇怪的步态，主要是靠后腿在支撑，前腿接触地面辅助；右前腿抬的较高
+Note: 可能是奖励观测设定的问题。
