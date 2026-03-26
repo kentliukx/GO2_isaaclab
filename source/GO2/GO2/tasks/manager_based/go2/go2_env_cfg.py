@@ -18,6 +18,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg, FrameTransformerCfg, OffsetCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab.utils import configclass
 
 from . import mdp
@@ -40,25 +41,24 @@ class Go2SceneCfg(InteractiveSceneCfg):
     """Configuration for a GO2 scene."""
 
     # ground plane
-    ground = AssetBaseCfg(
-        prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
-    )
-    # ground terrain
-    # terrain = TerrainImporterCfg(
+    # ground = AssetBaseCfg(
     #     prim_path="/World/ground",
-    #     terrain_type="generator",
-    #     terrain_generator=ROUGH_TERRAINS_CFG,
-    #     max_init_terrain_level=5,
-    #     collision_group=-1,
-    #     physics_material=sim_utils.RigidBodyMaterialCfg(
-    #         friction_combine_mode="multiply",
-    #         restitution_combine_mode="multiply",
-    #         static_friction=1.0,
-    #         dynamic_friction=1.0,
-    #     ),
-    #     debug_vis=False,
+    #     spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
     # )
+    terrain = TerrainImporterCfg(
+        prim_path="/World/ground",
+        terrain_type="generator",
+        terrain_generator=ROUGH_TERRAINS_CFG,
+        max_init_terrain_level=5,
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="multiply",
+            restitution_combine_mode="multiply",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+        ),
+        debug_vis=False,
+    )
 
     # robot
     robot: ArticulationCfg = GO2_CONFIG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -135,20 +135,36 @@ class ObservationsCfg:
             scale=1.0
         )
         last_action = ObsTerm(func=mdp.last_action, scale=1.0)
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, scale=1.0)
-        joint_vel = ObsTerm(func=mdp.joint_vel, scale=0.05)
-        projected_gravity = ObsTerm(func=mdp.projected_gravity, scale=1.0)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, scale=1.0, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.joint_vel, scale=0.05, noise=Unoise(n_min=-1, n_max=1))
+        projected_gravity = ObsTerm(func=mdp.projected_gravity, scale=1.0, noise=Unoise(n_min=-0.05, n_max=0.05))
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2, noise=Unoise(n_min=-0.2, n_max=0.2))
+
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
             self.concatenate_terms = True
 
     @configclass
-    class CriticCfg(PolicyCfg):
-        """Privileged observations for critic group."""
-
+    class CriticCfg(ObsGroup):
+        # observation terms (order preserved)
+        generated_commands = ObsTerm(
+            func=mdp.generated_commands,
+            params={
+                "command_name": "base_velocity"
+            },
+            scale=1.0
+        )
+        last_action = ObsTerm(func=mdp.last_action, scale=1.0)
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, scale=1.0)
+        joint_vel = ObsTerm(func=mdp.joint_vel, scale=0.05)
+        projected_gravity = ObsTerm(func=mdp.projected_gravity, scale=1.0)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel, scale=2.0)
+
+        def __post_init__(self) -> None:
+            self.enable_corruption = False
+            self.concatenate_terms = True
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -164,8 +180,8 @@ class EventCfg:
         func=mdp.reset_joints_by_offset,
         mode="reset",
         params={
-            "position_range": (-0.1, 0.1),
-            "velocity_range": (-0.5, 0.5),
+            "position_range": (-0.5, 0.5),
+            "velocity_range": (-1, 1),
         },
     )
 
@@ -173,9 +189,52 @@ class EventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {},
-            "velocity_range": {},
+            "pose_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "yaw": (-3.14, 3.14),
+            },
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            },
         }
+    )
+
+    # Randomization
+    base_com = EventTerm(
+        func=mdp.randomize_rigid_body_com,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+            "com_range": {"x": (-0.03, 0.03), "y": (-0.03, 0.03), "z": (-0.01, 0.01)},
+        },
+    )
+
+    add_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="base"),
+            "mass_distribution_params": (-2.0, 2.0),
+            "operation": "add",
+        },
+    )
+
+    physics_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "static_friction_range": (0.7, 0.9),
+            "dynamic_friction_range": (0.5, 0.7),
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+        },
     )
 
 
@@ -332,7 +391,7 @@ class CommandsCfg:
         rel_standing_envs=0.1,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1, 1), lin_vel_y=(-1, 1), ang_vel_z=(-1, 1)
+            lin_vel_x=(-2, 2), lin_vel_y=(-1, 1), ang_vel_z=(-2, 2)
         )
     )
 
