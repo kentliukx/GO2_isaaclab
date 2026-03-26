@@ -387,3 +387,35 @@ Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_
         energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
 Result: 5000 iter, 奇怪的步态，主要是靠后腿在支撑，前腿接触地面辅助；右前腿抬的较高
 Note: 可能是奖励观测设定的问题。
+
+20260325_5
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 5000 iter, 非常好的步态。
+Note: 果然，加入了线速度的观测，就走的不错。现在试试看只给critic加线速度的观测，把actor的线速度取消掉看看。
+
+20260325_6
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: 500 iter, 非常好的步态。
+Note: 看起来线速度只需要critic看到就可以了。接下来尝试一下randomization。
+
+20260326_0
+Command: x:-1~1; y:-1~+1; yaw:-1~+1
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: load from 20260325_6, 5000 iter, 非常好的步态。
+Note: 接下来让速度变快一点看看，同时放到崎岖地形上面去历练一下
+
+20260326_1
+Command: x:-2~2; y:-1~+1; yaw:-2~+2
+Reward: is_alive:5; track_xy_exp:1; track_yaw_exp:0.5; lin_vel_z_l2:-2; ang_vel_xy_l2:-0.02; 
+        base_height_l2:-1; flat_orientation_l2:-0.2; feet_air_time: 0.2; feet_ground_time:1; feet_air_time_excess:-5; foot_slip:-0.05; joint_pos_limits:-5; 
+        energy_consumption:-1e-4; joint_acc_l2:-5e-8; joint_speed_l2:-1e-4; action_rate_l2:-0.01; action_smoothness_l2:-0.01
+Result: load from 20260325_6, 10000 iter, 非常好的步态。
+Note: 放到mujoco去看看
